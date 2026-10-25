@@ -12,7 +12,7 @@ app.use(express.json());
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
-// Database: chats yahan save hongi
+// Database: chats aur applications yahan save hongi
 const db = new DatabaseSync(path.join(__dirname, "parakh.db"));
 db.exec(`
 CREATE TABLE IF NOT EXISTS conversations (
@@ -25,6 +25,14 @@ CREATE TABLE IF NOT EXISTS messages (
   conversation_id INTEGER NOT NULL,
   role TEXT NOT NULL,
   text TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS applications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  company TEXT NOT NULL,
+  role TEXT NOT NULL,
+  applied_date TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Applied',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 `);
@@ -271,6 +279,52 @@ Include at most 12 skills.`;
     return res.status(500).json({ error: BUSY });
   }
   res.json(data);
+});
+
+// ---------- My Applications (database, AI nahi) ----------
+const STATUSES = ["Applied", "Interview", "Offer", "Rejected"];
+
+app.get("/api/applications", (req, res) => {
+  const rows = db
+    .prepare(
+      "SELECT id, company, role, applied_date AS appliedDate, status FROM applications ORDER BY id DESC"
+    )
+    .all();
+  res.json(rows);
+});
+
+app.post("/api/applications", (req, res) => {
+  const { company, role, appliedDate } = req.body;
+
+  if (!company || !company.trim() || !role || !role.trim()) {
+    return res.status(400).json({ error: "Company aur role dono likho." });
+  }
+  if (company.length > 100 || role.length > 100) {
+    return res.status(400).json({ error: "Naam bahut lamba hai (100 akshar tak)." });
+  }
+
+  const date = String(appliedDate || new Date().toISOString().slice(0, 10)).slice(0, 10);
+  const result = db
+    .prepare("INSERT INTO applications (company, role, applied_date) VALUES (?, ?, ?)")
+    .run(company.trim(), role.trim(), date);
+  res.json({ id: Number(result.lastInsertRowid) });
+});
+
+app.put("/api/applications/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const { status } = req.body;
+
+  if (!STATUSES.includes(status)) {
+    return res.status(400).json({ error: "Status galat hai." });
+  }
+  db.prepare("UPDATE applications SET status = ? WHERE id = ?").run(status, id);
+  res.json({ ok: true });
+});
+
+app.delete("/api/applications/:id", (req, res) => {
+  const id = Number(req.params.id);
+  db.prepare("DELETE FROM applications WHERE id = ?").run(id);
+  res.json({ ok: true });
 });
 
 const PORT = 5000;

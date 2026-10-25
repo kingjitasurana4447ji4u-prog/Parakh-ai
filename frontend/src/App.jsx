@@ -1,12 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import OfferCheck from "./OfferCheck";
+import PathCompare from "./PathCompare";
+import SkillRadar from "./SkillRadar";
+import Applications from "./Applications";
 import "./App.css";
 
 const API = "http://localhost:5000";
 
 function App() {
   const [view, setView] = useState("chat");
+  const [menuOpen, setMenuOpen] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -32,14 +36,19 @@ function App() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  function go(v) {
+    setView(v);
+    setMenuOpen(false);
+  }
+
   function newChat() {
-    setView("chat");
+    go("chat");
     setActiveId(null);
     setMessages([]);
   }
 
   async function openChat(id) {
-    setView("chat");
+    go("chat");
     setActiveId(id);
     try {
       const res = await fetch(API + "/api/conversations/" + id + "/messages");
@@ -100,7 +109,11 @@ function App() {
 
   return (
     <div className="app">
-      <aside className="sidebar">
+      <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)}>
+        {menuOpen ? "×" : "☰"}
+      </button>
+
+      <aside className={"sidebar " + (menuOpen ? "open" : "")}>
         <div className="logo">
           Parakh <span>AI</span>
         </div>
@@ -124,14 +137,19 @@ function App() {
         </div>
 
         <h4>Tools</h4>
-        <button
-          className={view === "offer" ? "active" : ""}
-          onClick={() => setView("offer")}
-        >
+        <button className={view === "offer" ? "active" : ""} onClick={() => go("offer")}>
           Offer Check
         </button>
-        <button className="soon" disabled>Path Compare (jaldi)</button>
-        <button className="soon" disabled>Skill Radar (jaldi)</button>
+        <button className={view === "path" ? "active" : ""} onClick={() => go("path")}>
+          Path Compare
+        </button>
+        <button className={view === "skill" ? "active" : ""} onClick={() => go("skill")}>
+          Skill Radar
+        </button>
+        <button className={view === "apps" ? "active" : ""} onClick={() => go("apps")}>
+          My Applications
+        </button>
+        <button className="soon" disabled>Pressure Round (jaldi)</button>
 
         <h4>Language</h4>
         <button
@@ -149,9 +167,12 @@ function App() {
       </aside>
 
       <main className="main">
-        {view === "offer" ? (
-          <OfferCheck language={language} />
-        ) : (
+        {view === "offer" && <OfferCheck language={language} />}
+        {view === "path" && <PathCompare language={language} />}
+        {view === "skill" && <SkillRadar language={language} />}
+        {view === "apps" && <Applications />}
+
+        {view === "chat" && (
           <>
             <div className="messages">
               <div className="chat-width">
