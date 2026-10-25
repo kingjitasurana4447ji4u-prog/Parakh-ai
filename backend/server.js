@@ -29,11 +29,43 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 `);
 
+// ---------- Helpers (har tool yahi use karta hai) ----------
+function langText(language) {
+  return language === "hinglish"
+    ? "simple Hinglish (Hindi written in English letters)"
+    : "simple English";
+}
+
+// Gemini se JSON jawab lo, 3 baar try karo
+async function askJson(instruction, contents) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: MODEL,
+        contents,
+        config: {
+          systemInstruction: instruction,
+          responseMimeType: "application/json",
+        },
+      });
+      const clean = (response.text || "").replace(/```json|```/g, "").trim();
+      return JSON.parse(clean);
+    } catch (err) {
+      if (attempt < 3) {
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    }
+  }
+  return null;
+}
+
+const BUSY = "AI abhi busy hai, thodi der baad try karo.";
+
 app.get("/api/hello", (req, res) => {
   res.json({ message: "Namaste! Parakh AI backend chal raha hai." });
 });
 
-// Saari chats ki list
+// ---------- Chat history ----------
 app.get("/api/conversations", (req, res) => {
   const rows = db
     .prepare("SELECT id, title FROM conversations ORDER BY id DESC")
@@ -41,13 +73,11 @@ app.get("/api/conversations", (req, res) => {
   res.json(rows);
 });
 
-// Nayi chat banao
 app.post("/api/conversations", (req, res) => {
   const result = db.prepare("INSERT INTO conversations DEFAULT VALUES").run();
   res.json({ id: Number(result.lastInsertRowid), title: "New chat" });
 });
 
-// Ek chat ke saare messages
 app.get("/api/conversations/:id/messages", (req, res) => {
   const id = Number(req.params.id);
   const rows = db
@@ -56,7 +86,6 @@ app.get("/api/conversations/:id/messages", (req, res) => {
   res.json(rows);
 });
 
-// Chat delete karo
 app.delete("/api/conversations/:id", (req, res) => {
   const id = Number(req.params.id);
   db.prepare("DELETE FROM messages WHERE conversation_id = ?").run(id);
@@ -64,7 +93,7 @@ app.delete("/api/conversations/:id", (req, res) => {
   res.json({ ok: true });
 });
 
-// Message bhejo, Gemini se jawab lo, dono save karo
+// ---------- Chat ----------
 app.post("/api/chat", async (req, res) => {
   const { conversationId, message, language } = req.body;
   const id = Number(conversationId);
@@ -127,7 +156,7 @@ app.post("/api/chat", async (req, res) => {
     ).run(id, reply);
     res.json({ reply });
   } catch (err) {
-    res.status(500).json({ error: "AI abhi busy hai, thodi der baad try karo." });
+    res.status(500).json({ error: BUSY });
   }
 });
 
@@ -142,17 +171,12 @@ app.post("/api/offer-check", async (req, res) => {
     return res.status(400).json({ error: "Text bahut lamba hai (6000 akshar tak)." });
   }
 
-  const lang =
-    language === "hinglish"
-      ? "simple Hinglish (Hindi written in English letters)"
-      : "simple English";
-
   const instruction = `You are Parakh AI, an expert at spotting fake job and internship offers in India.
 The user pastes a job message or offer letter. Analyse it for scam risk.
 Look for: registration or security fees, payment before joining, WhatsApp/Telegram-only recruiters,
 free email domains (gmail, yahoo) used by a "company", urgency pressure, unrealistic salary for the role,
 service bonds, very long notice periods, unpaid probation, no interview, vague company details.
-Write all text fields in ${lang}. Keep each point short and clear.
+Write all text fields in ${langText(language)}. Keep each point short and clear.
 Reply with ONLY valid JSON in exactly this shape:
 {
   "riskScore": number from 0 to 100 (100 = definitely a scam),
@@ -166,26 +190,87 @@ Reply with ONLY valid JSON in exactly this shape:
 Set "salary" to null if no salary is mentioned. If salary is mentioned, give a rough in-hand estimate
 after typical Indian deductions (PF, tax) and say clearly that it is an estimate.`;
 
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      const response = await ai.models.generateContent({
-        model: MODEL,
-        contents: text,
-        config: {
-          systemInstruction: instruction,
-          responseMimeType: "application/json",
-        },
-      });
-      const clean = (response.text || "").replace(/```json|```/g, "").trim();
-      const data = JSON.parse(clean);
-      return res.json(data);
-    } catch (err) {
-      if (attempt < 3) {
-        await new Promise((r) => setTimeout(r, 1500));
-      }
-    }
+  const data = await askJson(instruction, text);
+  if (!data) return res.status(500).json({ error: BUSY });
+  res.json(data);
+});
+
+// ---------- Path Compare ----------
+app.post("/api/path-compare", async (req, res) => {
+  const { optionA, optionB, background, language } = req.body;
+
+  if (!optionA || !optionA.trim() || !optionB || !optionB.trim()) {
+    return res.status(400).json({ error: "Dono options likho." });
   }
-  res.status(500).json({ error: "AI abhi busy hai, thodi der baad try karo." });
+  if (
+    optionA.length > 1500 ||
+    optionB.length > 1500 ||
+    (background && background.length > 1500)
+  ) {
+    return res.status(400).json({ error: "Text bahut lamba hai (1500 akshar tak)." });
+  }
+
+  const instruction = `You are Parakh AI, a career guide for Indian students and freshers, especially from Tier-2 and Tier-3 cities.
+The user gives two career options and optional background. Compare them over the next 3 years.
+Be realistic and honest. All money is in lakh rupees per year (LPA) as plain numbers, for example 3.5.
+"salaryYear1/2/3" means the rough income earned in that year (use 0 if the person would be studying
+without income; mention fees or loans in the risks).
+Write all text in ${langText(language)}. Keep each point short.
+Reply with ONLY valid JSON in exactly this shape:
+{
+  "optionA": {
+    "name": "short name",
+    "salaryYear1": number, "salaryYear2": number, "salaryYear3": number,
+    "skills": ["skills gained"],
+    "stress": number from 1 to 10,
+    "pros": ["..."],
+    "risks": ["..."],
+    "suits": "who this path suits, one sentence"
+  },
+  "optionB": { same shape as optionA },
+  "verdict": "2-3 sentence balanced advice, not a guarantee"
+}`;
+
+  const prompt =
+    "Option A: " + optionA + "\nOption B: " + optionB +
+    "\nBackground: " + (background && background.trim() ? background : "not given");
+
+  const data = await askJson(instruction, prompt);
+  if (!data || !data.optionA || !data.optionB) {
+    return res.status(500).json({ error: BUSY });
+  }
+  res.json(data);
+});
+
+// ---------- Skill Radar ----------
+app.post("/api/skill-radar", async (req, res) => {
+  const { skills, language } = req.body;
+
+  if (!skills || !skills.trim()) {
+    return res.status(400).json({ error: "Apni skills likho." });
+  }
+  if (skills.length > 1500) {
+    return res.status(400).json({ error: "Text bahut lamba hai (1500 akshar tak)." });
+  }
+
+  const instruction = `You are Parakh AI, a career guide for Indian students and freshers.
+The user lists their skills. For each skill, say whether demand in the Indian job market is
+"growing", "stable" or "declining" over the next 3 years, why, and what to learn next.
+Be honest and practical. Write all text in ${langText(language)}. Keep each point short.
+Reply with ONLY valid JSON in exactly this shape:
+{
+  "summary": "2 short sentences about the overall skill set",
+  "skills": [
+    { "name": "skill", "trend": "growing" or "stable" or "declining", "why": "...", "learnNext": "..." }
+  ]
+}
+Include at most 12 skills.`;
+
+  const data = await askJson(instruction, skills);
+  if (!data || !Array.isArray(data.skills)) {
+    return res.status(500).json({ error: BUSY });
+  }
+  res.json(data);
 });
 
 const PORT = 5000;
