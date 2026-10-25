@@ -1,40 +1,86 @@
 import { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 import "./App.css";
 
 const API = "http://localhost:5000";
 
 function App() {
+  const [conversations, setConversations] = useState([]);
+  const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [language, setLanguage] = useState("hinglish");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
 
+  async function loadConversations() {
+    try {
+      const res = await fetch(API + "/api/conversations");
+      setConversations(await res.json());
+    } catch {
+      // backend band hai
+    }
+  }
+
+  useEffect(() => {
+    loadConversations();
+  }, []);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  function newChat() {
+    setActiveId(null);
+    setMessages([]);
+  }
+
+  async function openChat(id) {
+    setActiveId(id);
+    try {
+      const res = await fetch(API + "/api/conversations/" + id + "/messages");
+      setMessages(await res.json());
+    } catch {
+      setMessages([]);
+    }
+  }
+
+  async function deleteChat(id, e) {
+    e.stopPropagation();
+    await fetch(API + "/api/conversations/" + id, { method: "DELETE" });
+    if (id === activeId) newChat();
+    loadConversations();
+  }
 
   async function sendMessage() {
     const text = input.trim();
     if (!text || loading) return;
 
-    const newMessages = [...messages, { role: "user", text }];
-    setMessages(newMessages);
+    const shown = [...messages, { role: "user", text }];
+    setMessages(shown);
     setInput("");
     setLoading(true);
 
     try {
+      let id = activeId;
+      if (!id) {
+        const r = await fetch(API + "/api/conversations", { method: "POST" });
+        const c = await r.json();
+        id = c.id;
+        setActiveId(id);
+      }
       const res = await fetch(API + "/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMessages, language }),
+        body: JSON.stringify({ conversationId: id, message: text, language }),
       });
       const data = await res.json();
       const reply = res.ok ? data.reply : data.error;
-      setMessages([...newMessages, { role: "model", text: reply }]);
+      setMessages([...shown, { role: "model", text: reply }]);
+      loadConversations();
     } catch {
       setMessages([
-        ...newMessages,
+        ...shown,
         { role: "model", text: "Backend se connect nahi hua. Server chal raha hai?" },
       ]);
     }
@@ -54,9 +100,24 @@ function App() {
         <div className="logo">
           Parakh <span>AI</span>
         </div>
-        <button className="new-chat" onClick={() => setMessages([])}>
+        <button className="new-chat" onClick={newChat}>
           + New chat
         </button>
+
+        <h4>Chats</h4>
+        <div className="chat-list">
+          {conversations.length === 0 && <p className="empty">Abhi koi chat nahi</p>}
+          {conversations.map((c) => (
+            <div
+              key={c.id}
+              className={"chat-item " + (c.id === activeId ? "current" : "")}
+              onClick={() => openChat(c.id)}
+            >
+              <span>{c.title}</span>
+              <button onClick={(e) => deleteChat(c.id, e)}>×</button>
+            </div>
+          ))}
+        </div>
 
         <h4>Tools</h4>
         <button className="soon" disabled>Offer Check (jaldi)</button>
@@ -90,7 +151,13 @@ function App() {
 
             {messages.map((m, i) => (
               <div key={i} className={"msg " + m.role}>
-                <div className="bubble">{m.text}</div>
+                <div className="bubble">
+                  {m.role === "model" ? (
+                    <ReactMarkdown>{m.text}</ReactMarkdown>
+                  ) : (
+                    m.text
+                  )}
+                </div>
               </div>
             ))}
 

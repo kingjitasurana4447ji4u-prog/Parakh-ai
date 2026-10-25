@@ -84,3 +84,19 @@
 @media (max-width: 700px) {
   .sidebar { display: none; }
 }
+.msg.model .bubble { white-space: normal; }
+.bubble p { margin-bottom: 8px; }
+.bubble p:last-child { margin-bottom: 0; }
+.bubble ul, .bubble ol { margin: 6px 0 8px 22px; }
+.bubble h1, .bubble h2, .bubble h3 { margin: 10px 0 6px; font-size: 16px; color: #1e3a8a; }
+.bubble hr { border: none; border-top: 1px solid #e5e2d8; margin: 10px 0; }
+.bubble code { background: #f0eee6; padding: 1px 5px; border-radius: 4px; }
+
+.chat-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; min-height: 80px; }
+.chat-list .empty { font-size: 13px; color: #999; padding: 6px 10px; }
+.chat-item { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+.chat-item:hover { background: #e8e5da; }
+.chat-item.current { background: #dbe4ff; }
+.chat-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar .chat-item button { padding: 0 6px; border: none; background: transparent; color: #999; font-size: 18px; }
+.sidebar .chat-item button:hover { color: #c00; background: transparent; }

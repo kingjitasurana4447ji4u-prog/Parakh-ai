@@ -1,7 +1,9 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 require("dotenv").config();
 const { GoogleGenAI } = require("@google/genai");
+const { DatabaseSync } = require("node:sqlite");
 
 const app = express();
 app.use(cors());
@@ -10,28 +12,99 @@ app.use(express.json());
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
+// Database: chats yahan save hongi
+const db = new DatabaseSync(path.join(__dirname, "parakh.db"));
+db.exec(`
+CREATE TABLE IF NOT EXISTS conversations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL DEFAULT 'New chat',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  conversation_id INTEGER NOT NULL,
+  role TEXT NOT NULL,
+  text TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+`);
+
 app.get("/api/hello", (req, res) => {
   res.json({ message: "Namaste! Parakh AI backend chal raha hai." });
 });
 
-app.post("/api/chat", async (req, res) => {
-  const { messages, language } = req.body;
+// Saari chats ki list
+app.get("/api/conversations", (req, res) => {
+  const rows = db
+    .prepare("SELECT id, title FROM conversations ORDER BY id DESC")
+    .all();
+  res.json(rows);
+});
 
-  if (!Array.isArray(messages) || messages.length === 0) {
+// Nayi chat banao
+app.post("/api/conversations", (req, res) => {
+  const result = db.prepare("INSERT INTO conversations DEFAULT VALUES").run();
+  res.json({ id: Number(result.lastInsertRowid), title: "New chat" });
+});
+
+// Ek chat ke saare messages
+app.get("/api/conversations/:id/messages", (req, res) => {
+  const id = Number(req.params.id);
+  const rows = db
+    .prepare("SELECT role, text FROM messages WHERE conversation_id = ? ORDER BY id")
+    .all(id);
+  res.json(rows);
+});
+
+// Chat delete karo
+app.delete("/api/conversations/:id", (req, res) => {
+  const id = Number(req.params.id);
+  db.prepare("DELETE FROM messages WHERE conversation_id = ?").run(id);
+  db.prepare("DELETE FROM conversations WHERE id = ?").run(id);
+  res.json({ ok: true });
+});
+
+// Message bhejo, Gemini se jawab lo, dono save karo
+app.post("/api/chat", async (req, res) => {
+  const { conversationId, message, language } = req.body;
+  const id = Number(conversationId);
+
+  if (!id || !message || !message.trim()) {
     return res.status(400).json({ error: "Pehle kuch likho." });
   }
-  const last = messages[messages.length - 1].text || "";
-  if (!last.trim()) {
-    return res.status(400).json({ error: "Pehle kuch likho." });
-  }
-  if (last.length > 6000) {
+  if (message.length > 6000) {
     return res.status(400).json({ error: "Message bahut lamba hai." });
   }
 
-  const contents = messages.slice(-20).map((m) => ({
+  const convo = db.prepare("SELECT * FROM conversations WHERE id = ?").get(id);
+  if (!convo) {
+    return res.status(404).json({ error: "Ye chat nahi mili." });
+  }
+
+  db.prepare(
+    "INSERT INTO messages (conversation_id, role, text) VALUES (?, 'user', ?)"
+  ).run(id, message);
+
+  if (convo.title === "New chat") {
+    db.prepare("UPDATE conversations SET title = ? WHERE id = ?").run(
+      message.trim().slice(0, 40),
+      id
+    );
+  }
+
+  const rows = db
+    .prepare(
+      "SELECT role, text FROM messages WHERE conversation_id = ? ORDER BY id DESC LIMIT 20"
+    )
+    .all(id)
+    .reverse();
+  const contents = rows.map((m) => ({
     role: m.role === "user" ? "user" : "model",
     parts: [{ text: m.text }],
   }));
+  while (contents.length > 0 && contents[0].role === "model") {
+    contents.shift();
+  }
 
   const style =
     language === "hinglish"
@@ -48,7 +121,11 @@ app.post("/api/chat", async (req, res) => {
           style,
       },
     });
-    res.json({ reply: response.text });
+    const reply = response.text || "Jawab nahi mila, dobara try karo.";
+    db.prepare(
+      "INSERT INTO messages (conversation_id, role, text) VALUES (?, 'model', ?)"
+    ).run(id, reply);
+    res.json({ reply });
   } catch (err) {
     res.status(500).json({ error: "AI abhi busy hai, thodi der baad try karo." });
   }
