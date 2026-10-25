@@ -131,6 +131,63 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
+// ---------- Offer Check ----------
+app.post("/api/offer-check", async (req, res) => {
+  const { text, language } = req.body;
+
+  if (!text || !text.trim()) {
+    return res.status(400).json({ error: "Pehle offer ka text paste karo." });
+  }
+  if (text.length > 6000) {
+    return res.status(400).json({ error: "Text bahut lamba hai (6000 akshar tak)." });
+  }
+
+  const lang =
+    language === "hinglish"
+      ? "simple Hinglish (Hindi written in English letters)"
+      : "simple English";
+
+  const instruction = `You are Parakh AI, an expert at spotting fake job and internship offers in India.
+The user pastes a job message or offer letter. Analyse it for scam risk.
+Look for: registration or security fees, payment before joining, WhatsApp/Telegram-only recruiters,
+free email domains (gmail, yahoo) used by a "company", urgency pressure, unrealistic salary for the role,
+service bonds, very long notice periods, unpaid probation, no interview, vague company details.
+Write all text fields in ${lang}. Keep each point short and clear.
+Reply with ONLY valid JSON in exactly this shape:
+{
+  "riskScore": number from 0 to 100 (100 = definitely a scam),
+  "verdict": "Likely safe" or "Be careful" or "Likely scam",
+  "summary": "2 short sentences",
+  "redFlags": ["..."],
+  "goodSigns": ["..."],
+  "salary": null or { "advertised": "...", "inHandEstimate": "...", "note": "..." },
+  "nextSteps": ["..."]
+}
+Set "salary" to null if no salary is mentioned. If salary is mentioned, give a rough in-hand estimate
+after typical Indian deductions (PF, tax) and say clearly that it is an estimate.`;
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: MODEL,
+        contents: text,
+        config: {
+          systemInstruction: instruction,
+          responseMimeType: "application/json",
+        },
+      });
+      const clean = (response.text || "").replace(/```json|```/g, "").trim();
+      const data = JSON.parse(clean);
+      return res.json(data);
+    } catch (err) {
+      if (attempt < 3) {
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    }
+  }
+  res.status(500).json({ error: "AI abhi busy hai, thodi der baad try karo." });
+});
+
 const PORT = 5000;
 app.listen(PORT, () => {
   console.log("Backend chal raha hai: http://localhost:" + PORT);

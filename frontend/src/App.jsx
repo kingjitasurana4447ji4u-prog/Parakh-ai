@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
+import OfferCheck from "./OfferCheck";
 import "./App.css";
 
 const API = "http://localhost:5000";
 
 function App() {
+  const [view, setView] = useState("chat");
   const [conversations, setConversations] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -31,11 +33,13 @@ function App() {
   }, [messages, loading]);
 
   function newChat() {
+    setView("chat");
     setActiveId(null);
     setMessages([]);
   }
 
   async function openChat(id) {
+    setView("chat");
     setActiveId(id);
     try {
       const res = await fetch(API + "/api/conversations/" + id + "/messages");
@@ -110,7 +114,7 @@ function App() {
           {conversations.map((c) => (
             <div
               key={c.id}
-              className={"chat-item " + (c.id === activeId ? "current" : "")}
+              className={"chat-item " + (view === "chat" && c.id === activeId ? "current" : "")}
               onClick={() => openChat(c.id)}
             >
               <span>{c.title}</span>
@@ -120,7 +124,12 @@ function App() {
         </div>
 
         <h4>Tools</h4>
-        <button className="soon" disabled>Offer Check (jaldi)</button>
+        <button
+          className={view === "offer" ? "active" : ""}
+          onClick={() => setView("offer")}
+        >
+          Offer Check
+        </button>
         <button className="soon" disabled>Path Compare (jaldi)</button>
         <button className="soon" disabled>Skill Radar (jaldi)</button>
 
@@ -140,53 +149,59 @@ function App() {
       </aside>
 
       <main className="main">
-        <div className="messages">
-          <div className="chat-width">
-            {messages.length === 0 && (
-              <div className="welcome">
-                <h1>Namaste! Main Parakh AI hoon</h1>
-                <p>Offer ho ya raasta, pehle parakh lo. Kuch bhi poochho.</p>
-              </div>
-            )}
+        {view === "offer" ? (
+          <OfferCheck language={language} />
+        ) : (
+          <>
+            <div className="messages">
+              <div className="chat-width">
+                {messages.length === 0 && (
+                  <div className="welcome">
+                    <h1>Namaste! Main Parakh AI hoon</h1>
+                    <p>Offer ho ya raasta, pehle parakh lo. Kuch bhi poochho.</p>
+                  </div>
+                )}
 
-            {messages.map((m, i) => (
-              <div key={i} className={"msg " + m.role}>
-                <div className="bubble">
-                  {m.role === "model" ? (
-                    <ReactMarkdown>{m.text}</ReactMarkdown>
-                  ) : (
-                    m.text
-                  )}
-                </div>
-              </div>
-            ))}
+                {messages.map((m, i) => (
+                  <div key={i} className={"msg " + m.role}>
+                    <div className="bubble">
+                      {m.role === "model" ? (
+                        <ReactMarkdown>{m.text}</ReactMarkdown>
+                      ) : (
+                        m.text
+                      )}
+                    </div>
+                  </div>
+                ))}
 
-            {loading && (
-              <div className="msg model">
-                <div className="bubble">Soch raha hoon...</div>
+                {loading && (
+                  <div className="msg model">
+                    <div className="bubble">Soch raha hoon...</div>
+                  </div>
+                )}
+                <div ref={bottomRef} />
               </div>
-            )}
-            <div ref={bottomRef} />
-          </div>
-        </div>
+            </div>
 
-        <div className="input-area">
-          <div className="input-box">
-            <textarea
-              rows={1}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKey}
-              placeholder="Apna sawaal likho..."
-            />
-            <button onClick={sendMessage} disabled={loading || !input.trim()}>
-              Bhejo
-            </button>
-          </div>
-          <p className="note">
-            AI guide hai, guarantee nahi. Company verify karo, job ke liye kabhi paisa mat do.
-          </p>
-        </div>
+            <div className="input-area">
+              <div className="input-box">
+                <textarea
+                  rows={1}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKey}
+                  placeholder="Apna sawaal likho..."
+                />
+                <button onClick={sendMessage} disabled={loading || !input.trim()}>
+                  Bhejo
+                </button>
+              </div>
+              <p className="note">
+                AI guide hai, guarantee nahi. Company verify karo, job ke liye kabhi paisa mat do.
+              </p>
+            </div>
+          </>
+        )}
       </main>
     </div>
   );
