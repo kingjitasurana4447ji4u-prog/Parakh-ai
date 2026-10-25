@@ -15,14 +15,23 @@ app.get("/api/hello", (req, res) => {
 });
 
 app.post("/api/chat", async (req, res) => {
-  const { message, language } = req.body;
+  const { messages, language } = req.body;
 
-  if (!message || !message.trim()) {
+  if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: "Pehle kuch likho." });
   }
-  if (message.length > 6000) {
+  const last = messages[messages.length - 1].text || "";
+  if (!last.trim()) {
+    return res.status(400).json({ error: "Pehle kuch likho." });
+  }
+  if (last.length > 6000) {
     return res.status(400).json({ error: "Message bahut lamba hai." });
   }
+
+  const contents = messages.slice(-20).map((m) => ({
+    role: m.role === "user" ? "user" : "model",
+    parts: [{ text: m.text }],
+  }));
 
   const style =
     language === "hinglish"
@@ -32,7 +41,7 @@ app.post("/api/chat", async (req, res) => {
   try {
     const response = await ai.models.generateContent({
       model: MODEL,
-      contents: message,
+      contents,
       config: {
         systemInstruction:
           "You are Parakh AI, a friendly career companion for Indian students and freshers. " +
