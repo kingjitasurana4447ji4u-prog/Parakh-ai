@@ -1,7 +1,6 @@
 import { useState } from "react";
+import { API } from "./apiConfig";
 import "./Login.css";
-
-const API = "http://localhost:5000";
 
 function Login({ onLogin }) {
   const [mode, setMode] = useState("login"); // login ya signup

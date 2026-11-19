@@ -1,7 +1,6 @@
 import { useState } from "react";
+import { API } from "./apiConfig";
 import "./Links.css";
-
-const API = "http://localhost:5000";
 
 const SAMPLE = "MS Excel, Typing, Python basics, Photoshop, Digital Marketing, Tally, Canva";
 

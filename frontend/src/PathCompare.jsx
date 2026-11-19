@@ -1,6 +1,5 @@
 import { useState } from "react";
-
-const API = "http://localhost:5000";
+import { API } from "./apiConfig";
 const arr = (x) => (Array.isArray(x) ? x : []);
 const num = (x) => Number(x) || 0;
 

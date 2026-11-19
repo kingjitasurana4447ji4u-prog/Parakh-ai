@@ -1,7 +1,6 @@
 import { useState } from "react";
+import { API } from "./apiConfig";
 import "./Links.css";
-
-const API = "http://localhost:5000";
 const TOKEN_KEY = "parakh_token";
 
 const SCAM_SAMPLE = `Congratulations! You are selected for Data Entry Executive at Global Tech Solutions.

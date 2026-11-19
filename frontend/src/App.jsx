@@ -5,9 +5,8 @@ import PathCompare from "./PathCompare";
 import SkillRadar from "./SkillRadar";
 import Applications from "./Applications";
 import Login from "./Login";
+import { API } from "./apiConfig";
 import "./App.css";
-
-const API = "http://localhost:5000";
 const TOKEN_KEY = "parakh_token";
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
 const ATTACHMENT_TYPES = {

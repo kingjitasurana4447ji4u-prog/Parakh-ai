@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-
-const API = "http://localhost:5000";
+import { API } from "./apiConfig";
 const TOKEN_KEY = "parakh_token";
 const STATUSES = ["Applied", "Interview", "Offer", "Rejected"];
 const COLORS = {

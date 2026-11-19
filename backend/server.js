@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const os = require("os");
 const crypto = require("crypto");
 const dns = require("dns").promises;
 const net = require("net");
@@ -18,7 +19,10 @@ console.log("Model use ho raha hai:", MODEL);
 console.log("API key mili?", process.env.GEMINI_API_KEY ? "haan" : "NAHI");
 
 // Database: users, chats aur applications yahan save hongi
-const db = new DatabaseSync(path.join(__dirname, "parakh.db"));
+const DB_PATH =
+  process.env.DB_PATH ||
+  (process.env.VERCEL ? path.join(os.tmpdir(), "parakh.db") : path.join(__dirname, "parakh.db"));
+const db = new DatabaseSync(DB_PATH);
 db.exec(`
 CREATE TABLE IF NOT EXISTS conversations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -664,7 +668,11 @@ app.delete("/api/applications/:id", requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-const PORT = 5000;
-app.listen(PORT, () => {
-  console.log("Backend chal raha hai: http://localhost:" + PORT);
-});
+const PORT = process.env.PORT || 5000;
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log("Backend chal raha hai: http://localhost:" + PORT);
+  });
+}
+
+module.exports = app;

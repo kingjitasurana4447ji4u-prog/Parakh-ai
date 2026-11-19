@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Production builds
+dist/
+frontend/dist/
+.vercel/
+
+# Environment and sensitive files
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+
+# Local Database
+parakh.db
+backend/parakh.db
+*.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Editor & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
