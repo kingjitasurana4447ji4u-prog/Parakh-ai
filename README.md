@@ -164,39 +164,6 @@ cd Parakh-ai
 
 ---
 
-## 🔌 API Reference
-
-### 🔑 Authentication
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :---: |
-| `POST` | `/api/signup` | Create a new user account | No |
-| `POST` | `/api/login` | Authenticate and obtain session token | No |
-| `GET` | `/api/me` | Fetch currently authenticated user | Yes |
-| `POST` | `/api/logout` | Revoke current session token | Yes |
-
-### 🤖 AI Services
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :---: |
-| `POST` | `/api/chat` | Send chat prompt or upload file attachment | Yes |
-| `POST` | `/api/fetch-job-link` | Safely parse job posting content from URL | Yes |
-| `POST` | `/api/offer-check` | Analyze offer letter for scam indicators | No |
-| `POST` | `/api/path-compare` | Generate 3-year trajectory comparison | No |
-| `POST` | `/api/skill-radar` | Retrieve hiring trends for skill list | No |
-
-### 🗄️ Chat & Applications Management
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :---: |
-| `GET` | `/api/conversations` | List user conversation threads | Yes |
-| `POST` | `/api/conversations` | Initialize a new conversation | Yes |
-| `GET` | `/api/conversations/:id/messages` | Retrieve message history for thread | Yes |
-| `DELETE` | `/api/conversations/:id` | Remove a conversation thread | Yes |
-| `GET` | `/api/applications` | Fetch tracked job applications | Yes |
-| `POST` | `/api/applications` | Create a new tracked job entry | Yes |
-| `PUT` | `/api/applications/:id` | Update status (`Applied`, `Interview`, `Offer`, `Rejected`) | Yes |
-| `DELETE` | `/api/applications/:id` | Delete an application record | Yes |
-
----
-
 ## 🔒 Security Best Practices Implemented
 
 - **Password Storage**: Passwords are never stored in plaintext. They are salted with cryptographically secure random bytes and derived via `scryptSync(64)`.
