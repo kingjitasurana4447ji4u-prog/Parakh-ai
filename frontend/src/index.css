@@ -1,7 +1,22 @@
+ :root {
+  --canvas: #e8f0ed;
+  --surface: #ffffff;
+  --surface-soft: #f2f7f5;
+  --border: #d6e0dc;
+  --border-strong: #bdcdc8;
+  --text: #202124;
+  --muted: #5f6368;
+  --accent: #3b8278;
+  --accent-hover: #2f7068;
+  --accent-soft: #e4f0ed;
+  --danger: #b3261e;
+  --danger-soft: #fce8e6;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; }
 body {
   font-family: system-ui, "Segoe UI", sans-serif;
-  background: #faf9f5;
-  color: #222;
+  background: var(--canvas);
+  color: var(--text);
 }

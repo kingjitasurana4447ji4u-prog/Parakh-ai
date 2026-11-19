@@ -1,6 +1,8 @@
 import { useState } from "react";
+import "./Links.css";
 
 const API = "http://localhost:5000";
+const TOKEN_KEY = "parakh_token";
 
 const SCAM_SAMPLE = `Congratulations! You are selected for Data Entry Executive at Global Tech Solutions.
 Salary: Rs 45,000 per month, work from home, no experience needed.
@@ -37,11 +39,85 @@ function List({ title, items, kind }) {
   );
 }
 
+// Company ke naam se verify karne ke search links
+function VerifyLinks({ company }) {
+  const name = typeof company === "string" ? company.trim() : "";
+  if (!name || name.toLowerCase() === "null") {
+    return (
+      <div className="vl-card">
+        <h4>Company verify karo</h4>
+        <p className="vl-note">
+          Offer mein company ka naam nahi mila. Ye bhi ek warning sign ho sakta hai. Recruiter se
+          company ka poora naam aur website maango.
+        </p>
+      </div>
+    );
+  }
+  const q = (extra) =>
+    "https://www.google.com/search?q=" + encodeURIComponent(name + " " + extra);
+  const links = [
+    { label: "Scam / fraud search", url: q("scam fraud complaints") },
+    { label: "Reviews (Google)", url: q("reviews employees") },
+    {
+      label: "LinkedIn company",
+      url: "https://www.linkedin.com/search/results/companies/?keywords=" + encodeURIComponent(name),
+    },
+    { label: "AmbitionBox reviews", url: q("ambitionbox reviews") },
+    { label: "MCA registration check", url: q("MCA company master data CIN") },
+  ];
+  return (
+    <div className="vl-card">
+      <h4>"{name}" ko khud verify karo</h4>
+      <div className="vl-links">
+        {links.map((l) => (
+          <a key={l.label} href={l.url} target="_blank" rel="noopener noreferrer">
+            {l.label}
+          </a>
+        ))}
+      </div>
+      <p className="vl-note">
+        Ye sirf search links hain, madad ke liye. Final faisla khud verify karke lo, aur job ke
+        liye kabhi paisa mat do.
+      </p>
+    </div>
+  );
+}
+
 export default function OfferCheck({ language }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+  const [link, setLink] = useState("");
+  const [linkLoading, setLinkLoading] = useState(false);
+  const [linkError, setLinkError] = useState("");
+
+  async function loadLink() {
+    if (!link.trim() || linkLoading) return;
+    setLinkLoading(true);
+    setLinkError("");
+    try {
+      const token = localStorage.getItem(TOKEN_KEY) || "";
+      const res = await fetch(API + "/api/fetch-job-link", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token,
+        },
+        body: JSON.stringify({ url: link }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setLinkError(data.error || "Ye link khul nahi paaya, offer ka text paste karo.");
+      } else {
+        setText(data.text);
+        setResult(null);
+      }
+    } catch {
+      setLinkError("Backend se connect nahi hua. Server chal raha hai?");
+    }
+    setLinkLoading(false);
+  }
 
   async function check() {
     if (!text.trim() || loading) return;
@@ -74,9 +150,30 @@ export default function OfferCheck({ language }) {
       <div className="oc-inner">
         <h2>Offer Check</h2>
         <p className="oc-sub">
-          Job ya internship ka message / offer letter yahan paste karo. Parakh AI scam risk
-          check karega.
+          Job ya internship ka message / offer letter yahan paste karo, ya job ka link do. Parakh
+          AI scam risk check karega.
         </p>
+
+        <div className="lk-box">
+          <label>Job ka link (optional)</label>
+          <div className="lk-row">
+            <input
+              className="lk-input"
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
+              placeholder="https://..."
+              maxLength={500}
+            />
+            <button className="lk-btn" onClick={loadLink} disabled={linkLoading || !link.trim()}>
+              {linkLoading ? "Padh raha hoon..." : "Link se text lao"}
+            </button>
+          </div>
+          <p className="lk-hint">
+            Text neeche box mein aa jayega, phir "Offer check karo" dabao. LinkedIn jaisi sites
+            login mangti hain, wahan link nahi chalega. Tab text khud paste karo.
+          </p>
+          {linkError && <div className="lk-error">{linkError}</div>}
+        </div>
 
         <div className="oc-samples">
           <button onClick={() => setText(SCAM_SAMPLE)}>Scam sample</button>
@@ -131,6 +228,8 @@ export default function OfferCheck({ language }) {
             )}
 
             <List title="Ab kya karein" items={arr(result.nextSteps)} kind="steps" />
+
+            <VerifyLinks company={result.companyName} />
 
             <p className="oc-disclaimer">
               AI guide hai, guarantee nahi. Company verify karo, job ke liye kabhi paisa mat do.

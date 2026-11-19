@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 
 const API = "http://localhost:5000";
+const TOKEN_KEY = "parakh_token";
 const STATUSES = ["Applied", "Interview", "Offer", "Rejected"];
 const COLORS = {
   Applied: "#1e3a8a",
@@ -8,6 +9,15 @@ const COLORS = {
   Offer: "#16a34a",
   Rejected: "#dc2626",
 };
+
+// Har request ke saath login token bhejta hai
+function authFetch(url, options = {}) {
+  const token = localStorage.getItem(TOKEN_KEY) || "";
+  return fetch(API + url, {
+    ...options,
+    headers: { ...(options.headers || {}), Authorization: "Bearer " + token },
+  });
+}
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -23,7 +33,12 @@ export default function Applications() {
 
   async function load() {
     try {
-      const res = await fetch(API + "/api/applications");
+      const res = await authFetch("/api/applications");
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || "Kuch gadbad ho gayi.");
+        return;
+      }
       setList(await res.json());
       setError("");
     } catch {
@@ -38,7 +53,7 @@ export default function Applications() {
   async function add() {
     if (!company.trim() || !role.trim()) return;
     try {
-      const res = await fetch(API + "/api/applications", {
+      const res = await authFetch("/api/applications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ company, role, appliedDate: date }),
@@ -58,7 +73,7 @@ export default function Applications() {
   }
 
   async function changeStatus(id, status) {
-    await fetch(API + "/api/applications/" + id, {
+    await authFetch("/api/applications/" + id, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
@@ -67,7 +82,7 @@ export default function Applications() {
   }
 
   async function remove(id) {
-    await fetch(API + "/api/applications/" + id, { method: "DELETE" });
+    await authFetch("/api/applications/" + id, { method: "DELETE" });
     load();
   }
 

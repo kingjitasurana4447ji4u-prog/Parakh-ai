@@ -1,4 +1,5 @@
 import { useState } from "react";
+import "./Links.css";
 
 const API = "http://localhost:5000";
 
@@ -9,6 +10,25 @@ const TREND = {
   stable: { label: "Stable", color: "#f97316" },
   declining: { label: "Ghat rahi hai", color: "#dc2626" },
 };
+
+// Seekhne ke search links (sirf search, koi scraping nahi)
+function learnLinks(topic) {
+  const t = encodeURIComponent(String(topic || "").trim());
+  return [
+    {
+      label: "YouTube",
+      url: "https://www.youtube.com/results?search_query=" + t + "+tutorial",
+    },
+    {
+      label: "Coursera",
+      url: "https://www.coursera.org/search?query=" + t,
+    },
+    {
+      label: "Google",
+      url: "https://www.google.com/search?q=" + t + "+free+course",
+    },
+  ];
+}
 
 export default function SkillRadar({ language }) {
   const [skills, setSkills] = useState("");
@@ -81,6 +101,7 @@ export default function SkillRadar({ language }) {
 
             {list.map((s, i) => {
               const t = TREND[s.trend] || TREND.stable;
+              const topic = s.learnNext || s.name;
               return (
                 <div className="sr-card" key={i} style={{ borderLeftColor: t.color }}>
                   <div className="sr-head">
@@ -93,12 +114,20 @@ export default function SkillRadar({ language }) {
                   <p className="oc-note">
                     <b>Aage seekho:</b> {s.learnNext}
                   </p>
+                  <div className="vl-links">
+                    {learnLinks(topic).map((l) => (
+                      <a key={l.label} href={l.url} target="_blank" rel="noopener noreferrer">
+                        {l.label}
+                      </a>
+                    ))}
+                  </div>
                 </div>
               );
             })}
 
             <p className="oc-disclaimer">
               Ye andaza hai, AI guide hai, guarantee nahi. Job portals pe bhi demand check karo.
+              Seekhne ke links sirf search ke liye hain, course kharidne se pehle review dekho.
             </p>
           </div>
         )}
